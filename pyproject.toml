@@ -1,11 +1,20 @@
 [project]
-name = "whisper"
+name = "whisper-app"
 version = "0.1.0"
-description = "Add your description here"
+description = "Whisper transcription CLI and Discord User App"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "discord-py>=2.7.1",
     "faster-whisper>=1.2.1",
     "nvidia-cublas-cu12>=12.9.2.10",
     "nvidia-cudnn-cu12>=9.24.0.43",
+    "python-dotenv>=1.2.3",
 ]
+
+[project.scripts]
+whisper-app = "whisper_app.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
