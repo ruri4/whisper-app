@@ -1,4 +1,5 @@
 import asyncio
+import time
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
@@ -87,6 +88,7 @@ bot = WhisperBot()
     url="URL to the audio/video file",
     attachment="Audio/video file to transcribe",
     model="Whisper model size",
+    ephemeral="Whether the response should only be visible to you (default: False)",
 )
 @app_commands.choices(
     model=[
@@ -103,6 +105,7 @@ async def transcribe_slash(
     url: Optional[str] = None,
     attachment: Optional[discord.Attachment] = None,
     model: app_commands.Choice[str] = None,
+    ephemeral: bool = False,
 ):
     target_url = None
     if attachment is not None:
@@ -117,30 +120,31 @@ async def transcribe_slash(
         return
 
     model_name = model.value if model else "large-v3-turbo"
-    await interaction.response.defer(ephemeral=False, thinking=True)
+    await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
+    start_time = time.monotonic()
     try:
         text, lang, prob = await transcribe_source_async(target_url, model_size=model_name)
+        elapsed = time.monotonic() - start_time
         if not text:
             await interaction.followup.send(
-                f"*(no speech detected / detected language: {lang} with {prob:.2f} prob)*"
+                f"-# no speech detected (lang: `{lang}`, prob: `{prob:.2f}`, took: `{elapsed:.2f}s`)",
+                ephemeral=ephemeral,
             )
             return
 
-        if len(text) > 1900:
-            text = text[:1900] + "... [truncated]"
+        meta = f"-# model: `{model_name}` | lang: `{lang}` ({prob * 100:.0f}%) | took: `{elapsed:.2f}s`"
+        if len(text) > 1800:
+            text = text[:1800] + "... [truncated]"
 
-        await interaction.followup.send(text)
+        await interaction.followup.send(f"{text}\n\n{meta}", ephemeral=ephemeral)
     except Exception as e:
         await interaction.followup.send(f"transcription failed: `{e}`", ephemeral=True)
 
 
-@bot.tree.context_menu(
-    name="Transcribe Message",
-)
-@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-@app_commands.allowed_installs(guilds=True, users=True)
-async def transcribe_context_menu(interaction: discord.Interaction, message: discord.Message):
+async def _handle_context_menu_transcribe(
+    interaction: discord.Interaction, message: discord.Message, ephemeral: bool
+):
     target_url = _extract_audio_url_from_message(message)
     if not target_url:
         await interaction.response.send_message(
@@ -149,22 +153,44 @@ async def transcribe_context_menu(interaction: discord.Interaction, message: dis
         )
         return
 
-    await interaction.response.defer(ephemeral=False, thinking=True)
+    await interaction.response.defer(ephemeral=ephemeral, thinking=True)
 
+    start_time = time.monotonic()
     try:
         text, lang, prob = await transcribe_source_async(target_url, model_size="large-v3-turbo")
+        elapsed = time.monotonic() - start_time
         if not text:
             await interaction.followup.send(
-                f"*(no speech detected / detected language: {lang} with {prob:.2f} prob)*"
+                f"-# no speech detected (lang: `{lang}`, prob: `{prob:.2f}`, took: `{elapsed:.2f}s`)",
+                ephemeral=ephemeral,
             )
             return
 
-        if len(text) > 1900:
-            text = text[:1900] + "... [truncated]"
+        meta = f"-# model: `large-v3-turbo` | lang: `{lang}` ({prob * 100:.0f}%) | took: `{elapsed:.2f}s`"
+        if len(text) > 1800:
+            text = text[:1800] + "... [truncated]"
 
-        await interaction.followup.send(text)
+        await interaction.followup.send(f"{text}\n\n{meta}", ephemeral=ephemeral)
     except Exception as e:
         await interaction.followup.send(f"transcription failed: `{e}`", ephemeral=True)
+
+
+@bot.tree.context_menu(
+    name="Transcribe",
+)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
+async def transcribe_context_menu(interaction: discord.Interaction, message: discord.Message):
+    await _handle_context_menu_transcribe(interaction, message, ephemeral=False)
+
+
+@bot.tree.context_menu(
+    name="Transcribe (private)",
+)
+@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+@app_commands.allowed_installs(guilds=True, users=True)
+async def transcribe_private_context_menu(interaction: discord.Interaction, message: discord.Message):
+    await _handle_context_menu_transcribe(interaction, message, ephemeral=True)
 
 
 def run_bot(token: str):

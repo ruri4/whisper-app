@@ -49,5 +49,6 @@ uv run python -m whisper_app.cli --bot
 ```
 
 **Features:**
-- `/transcribe [url] [attachment] [model]`: Slash command configured for user installation (`allowed_installs=[users, guilds]`, `allowed_contexts=[guilds, dms, private_channels]`). Usable anywhere on Discord.
-- **Message Context Menu ("Apps -> Transcribe Message")**: Right click or long press any voice note or message containing audio attachments/links to transcribe with `large-v3`.
+- `/transcribe [url] [attachment] [model] [ephemeral]`: Slash command configured for user installation (`allowed_installs=[users, guilds]`, `allowed_contexts=[guilds, dms, private_channels]`). Usable anywhere on Discord.
+- **Message Context Menu ("Apps -> Transcribe")**: Public in-channel transcription.
+- **Message Context Menu ("Apps -> Transcribe (private)")**: Ephemeral transcription only visible to you.
